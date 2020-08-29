@@ -83,9 +83,9 @@ endif
 .PHONY: npm
 npm:
 ifeq (,$(wildcard $(CURDIR)/package.json))
-	cd js && $(npm) run build
+	cd js && $(npm) run lint && $(npm) run build
 else
-	npm run build
+	$(npm) run lint && $(npm) run build
 endif
 
 # Removes the appstore build

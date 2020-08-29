@@ -1,8 +1,16 @@
 archive/
 build/
 dist/
+js/
 node_modules/
+vendor/
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+composer.lock
 
 .cache
+.idea
 .vscode
 .DS_Store
