@@ -1,0 +1,15 @@
+{
+    "name": "Mailman",
+    "description": "Mailing list integration via GNU Mailman",
+    "type": "project",
+    "license": "AGPL",
+    "authors": [
+        {
+            "name": "Florian Gmeiner"
+        }
+    ],
+    "require": {},
+    "require-dev": {
+        "phpunit/phpunit": "^5.4"
+    }
+}

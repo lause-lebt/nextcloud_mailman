@@ -1,0 +1,4 @@
+<?php
+
+$app = \OC::$server->query(\OCA\Mailman\AppInfo\Application::class);
+#$app->register();

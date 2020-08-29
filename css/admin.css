@@ -1,0 +1,9 @@
+.icon-inline {
+    display: inline-flex;
+    margin-right: 5px ;
+    float: right ;
+}
+
+#mailman-admincfg-server input {
+	width: 30em;
+}
