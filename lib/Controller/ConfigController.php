@@ -1,6 +1,6 @@
 <?php
 /**
- * @author 2020 Matthieu Florian Gmeiner <florian@tinkatinka.com>
+ * @author 2020 Florian Gmeiner <florian@tinkatinka.com>
  *
  * @license GNU AGPL version 3 or any later version
  *
@@ -22,6 +22,7 @@
 namespace OCA\Mailman\Controller;
 
 use OCP\AppFramework\Controller;
+use OCP\AppFramework\Http\JSONResponse;
 use OCP\IRequest;
 
 use OCA\Mailman\Service\ConfigService;
@@ -37,24 +38,34 @@ class ConfigController extends Controller {
     
     /**
      * @NoAdminRequired
+	 * @TrapError
      * NoCSRFRequired
-     * @PublicPage
+     * PublicPage
     */
-    public function getConfig() {
+    public function getConfig(): JSONResponse {
         $params = [
             "url" => $this->config->getAppValue("url"),
-	    "credentials" => $this->config->getAppValue("credentials"),
-	    "domain" => $this->config->getAppValue("domain"),
-	    "limit" => $this->config->getAppValue("limit"),
+	    	"cred" => $this->config->getAppValue("cred"),
+	    	"domain" => $this->config->getAppValue("domain"),
+	    	"limit" => $this->config->getAppValue("limit"),
             "lists" => $this->config->getAppValue("lists")
         ];
-        return $params ;
-    }
+        return new JSONResponse($params);
+	}
+	
+	public function setConfig(string $url, string $cred, string $domain, int $limit): JSONResponse {
+		$this->config->setAppValue('url', $url);
+		$this->config->setAppValue('cred', $cred);
+		$this->config->setAppValue('domain', $domain);
+		$this->config->setAppValue('limit', strval($limit));
+		return new JSONResponse(null);
+	}
 
-    public function setConfig($key, $value) {
-        $this->config->setAppValue($key, $value)  ;
-        return  $this->config->getAppValue($key) ;
-    }
+	/*
+    public function setConfig($key, $value): JSONResponse {
+        $this->config->setAppValue($key, $value);
+        return new JSONResponse(null);
+    }*/
 
     /*
     public function removeExclude($group) {

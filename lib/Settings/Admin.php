@@ -1,6 +1,6 @@
 <?php
 /**
- * @copyright Copyright (c) 2020 Florian Gmeiner <florian@tinkatinka.com>
+ * @author 2020 Florian Gmeiner <florian@tinkatinka.com>
  *
  * @license GNU AGPL version 3 or any later version
  *
@@ -21,17 +21,26 @@
 
 namespace OCA\Mailman\Settings;
 
+use OCA\Mailman\Exception\MailmanException;
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\IL10N;
 use OCP\ILogger;
 use OCP\Settings\ISettings;
-use OCP\Http\Client\IClientService;
+use OCP\IInitialStateService;
+use OCP\IGroupManager;
+//use OCP\Http\Client\IClientService;
 
 use OCA\Mailman\Service\ConfigService;
+use OCA\Mailman\Service\ListService;
 use OCA\Mailman\Service\MMService;
 
 
 class Admin implements ISettings {
+
+	private const TEMPLATE_ADMIN_CFG = 'admin';
+
+	/** @var string */
+	protected $appName;
 
 	/** @var ConfigService */
 	protected $config;
@@ -39,53 +48,83 @@ class Admin implements ISettings {
 	/** @var MMService */
 	protected $mm;
 
+	/** @var ListService */
+	protected $listService;
+
 	/** @var ILogger */
 	protected $logger;
 
 	/** @var IL10N */
 	protected $l;
 
+	/** @var IInitialStateService */
+	private $initialStateService;
 
-	public function __construct(ConfigService $config, MMService $mm, ILogger $logger, IL10N $l) {
-#	public function __construct(ConfigService $config, IClientService $client, ILogger $logger, IL10N $l) {
+	/** @var IGroupManager */
+	private $groupManager;
+
+
+	public function __construct(
+		ConfigService $config,
+		MMService $mm,
+		ListService $listService,
+		ILogger $logger,
+		IInitialStateService $initialStateService,
+		IGroupManager $groupManager,
+		IL10N $l,
+		string $AppName
+	) {
 		$this->config = $config;
 		$this->mm = $mm;
-#		$this->mm = new MMService($config, $client , $logger, 'mailman');
+		$this->listService = $listService;
 		$this->logger = $logger;
+		$this->initialStateService = $initialStateService;
+		$this->groupManager = $groupManager;
 		$this->l = $l;
-
-		$this->logger->notice("Mailman settings NOTICE");
+		$this->appName = $AppName;
 	}
+
 
 	/**
 	 * @return TemplateResponse
 	 */
 	public function getForm() {
 		$url = $this->config->getAppValue('url');
-		$cred = $this->config->getAppValue('credentials');
+		$cred = $this->config->getAppValue('cred');
 		$domain = $this->config->getAppValue('domain');
 		$limit = intval($this->config->getAppValue('limit'));
-		$lists = $this->config->getAppValue('lists');
+		$lists = $this->config->getLists();
 		$mmlists = $this->mm->getLists();
+		$preview = $this->listService->checkLists();
 
 		$parameters = [
-			'appId' => 'mailman',
+			'appid' => $this->appName,
+			'status' => $this->mm->getStatus(),
 			'url' => $url,
 			'cred' => $cred,
 			'domain' => $domain,
 			'limit' => $limit,
 			'lists' => $lists,
-			'mmlists' => $mmlists
+			'mmlists' => ($mmlists === false) ? [] : $mmlists,
+			'preview' => $preview,
+			'groups' => $this->listService->allGroups()
 		];
 
-		return new TemplateResponse('mailman', 'AdminConfig', $parameters);
+        #Util::addScript($this->appName, 'mailman-settings');
+        #Util::addStyle($this->appName, 'mm');
+		$this->initialStateService->provideInitialState(
+			$this->appName, 'settings', $parameters
+		);
+		return new TemplateResponse(
+			$this->appName, self::TEMPLATE_ADMIN_CFG
+		);
 	}
 
 	/**
 	 * @return string the section ID, e.g. 'sharing'
 	 */
 	public function getSection() {
-		return 'mailman';
+		return $this->appName;
 	}
 
 	/**

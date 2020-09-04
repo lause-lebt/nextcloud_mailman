@@ -22,6 +22,7 @@
 namespace OCA\Mailman\Service;
 
 use OCA\Mailman\Service\ConfigService;
+use OCA\Mailman\Exception\MailmanException;
 
 use OCP\AppFramework\Http;
 use OCP\Http\Client\IClient;
@@ -51,6 +52,9 @@ class MMService {
 	/** @var string */
 	private $domain;
 
+	/** @var int */
+	private $limit;
+
 	/** @var string */
 	private $requestURL;
 
@@ -67,6 +71,7 @@ class MMService {
 		$this->url = $config->getAppValue('url');
 		$this->cred = $config->getAppValue('credentials');
 		$this->domain = $config->getAppValue('domain');
+		$this->limit = intval($config->getAppValue('limit'));
 		$host = trim($this->url, '/');
 		$scheme = 'http';
 		$pos = stripos($host, '://');
@@ -82,91 +87,133 @@ class MMService {
 		$this->requestURL = $scheme . '://' . $this->cred . '@' . $host;
 	}
 
-	protected function get(string $query) {
+	protected function request(string $method, string $query, $data = null) {
 		try {
 			$client = $this->clientService->newClient();
-			$response = $client->get($this->requestURL . '/' . $query);
+			switch (strtolower($method)) {
+				case 'get':
+					$response = $client->get($this->requestURL . '/' . $query);
+					break;
+				case 'post':
+					$response = $client->post($this->requestURL . '/' . $query, [
+						'body' => $data
+					]);
+					break;
+				case 'delete':
+					$response = $client->delete($this->requestURL . '/' . $query);
+					break;
+				default:
+					throw new MailmanException('Unknown http method "'.$method.'"');
+			}
 		} catch (ClientException $e) {
-			$this->logger->error('MM GET query failed: ' . $query . ' -> ' . $e->getMessage());
-			return false;
+			$this->logger->error(
+				'Mailman "' . strtoupper($method) . '" query failed: '
+				. $query . ' -> ' . $e->getMessage()
+			);
+			throw new MailmanException($e->getMessage);
 		}
 		$status = $response->getStatusCode();
 		$body = $response->getBody();
 		if (strlen($body) > 0) {
 			$rdata = json_decode($body, true);
 			if (json_last_error() !== JSON_ERROR_NONE) {
-				$this->logger->error('JSON decode failed: ' . $body);
-				return false;
+				$msg = json_last_error_msg();
+				if ($msg === false) {
+					$msg = 'N/N';
+				}
+				$msg = 'JSON decode failed. Reason: '.$msg;
+				$this->logger->error($msg, [ 'response' => $body ]);
+				throw new MailmanException($msg);
 			}
 		} else {
-			$rdata = '';
+			$rdata = [];
 		}
 		return $rdata;
+	}
+
+
+	protected function get(string $query) {
+		return $this->request('get', $query);
 	}
 
 	protected function post(string $query, $data) {
-		try {
-			$client = $this->clientService->newClient();
-			$response = $client->post($this->requestURL . '/' . $query, [
-				'body' => $data
-			]);
-		} catch (ClientException $e) {
-			$this->logger->error('MM POST query failed: ' . $query . ' -> ' . $e->getMessage());
-			return false;
-		}
-		$status = $response->getStatusCode();
-		$body = $response->getBody();
-		if (strlen($body) > 0) {
-			$rdata = json_decode($body, true);
-			if (json_last_error() !== JSON_ERROR_NONE) {
-				$this->logger->error('JSON decode failed: ' . $body);
-				return false;
-			}
-		} else {
-			$rdata = '';
-		}
-		return $rdata;
+		return $this->request('post', $query, $data);
 	}
 
 	protected function delete(string $query) {
+		return $this->request('delete', $query);
+	}
+
+
+	public function getVersions(): array {
+		$l= $this->get('system/versions');
+		$this->logger->debug('getVersions: ' . print_r($l, true));
+		return $l;
+	}
+
+	public function getStatus(): array {
 		try {
-			$client = $this->clientService->newClient();
-			$response = $client->delete($this->requestURL . '/' . $query);
-		} catch (ClientException $e) {
-			$this->logger->error('MM DELETE query failed: ' . $query . ' -> ' . $e->getMessage());
-			return false;
+			$status = $this->getVersions();
+		} catch (MailmanException $e) {
+			return [
+				'active' => false,
+				'error' => $e->getMessage()
+			];
 		}
-		$status = $response->getStatusCode();
-		$body = $response->getBody();
-		if (strlen($body) > 0) {
-			$rdata = json_decode($body, true);
-			if (json_last_error() !== JSON_ERROR_NONE) {
-				$this->logger->error('JSON decode failed: ' . $body);
-				return false;
-			}
+		$status['active'] = true;
+		return $status;
+	}
+
+	public function getLists(): array {
+		try {
+			$l = $this->get('domains/' . $this->domain . '/lists');
+		} catch (MailmanException $e) {
+			return [];
+		}
+		$this->logger->debug('getLists: ' . print_r($l, true));
+		if (is_array($l) && array_key_exists('entries', $l)) {
+			return $l['entries'];
 		} else {
-			$rdata = '';
+			return [];
 		}
-		return $rdata;
 	}
 
-
-	public function getLists() {
-		$l = $this->get('domains/' . $this->domain . '/lists');
-		$this->logger->info('getLists: ' . print_r($l, true));
-		return $l;
+	public function createList(string $list): bool {
+		$l = $this->post('lists', [
+			'fqdn_listname' => $list . '@' . $this->domain,
+			'display_name' => $list,
+			'subject_prefix' => '['.$list.']',
+			'subscription_policy' => 'moderate',
+			'max_message_size' => $this->limit
+		]);
+		$this->logger->info('createList "'.$list.'": ' . print_r($l, true));
+		return true;
 	}
 
-	public function getMembers(string $list) {
-		$l = $this->get('lists/' . $list . '.' . $this->domain . '/roster/member');
-		$this->logger->info('getMembers "'.$list.'": ' . print_r($l, true));
-		return $l;
+	public function deleteList(string $list): bool {
+		$l = $this->delete('lists/' . $list . '.' . $this->domain);
+		$this->logger->info('deleteList "'.$list.'": ' . print_r($l, true));
+		return true;
+	}
+
+	public function getMembers(string $list): array {
+		try {
+			$l = $this->get('lists/' . $list . '.' . $this->domain . '/roster/member');
+		} catch (MailmanException $e) {
+			return [];
+		}
+		$this->logger->debug('getMembers "'.$list.'": ' . print_r($l, true));
+		if (is_array($l) && array_key_exists('entries', $l)) {
+			return $l['entries'];
+		} else {
+			return [];
+		}
 	}
 
 	public function findMember(string $list, string $email) {
 		$members = $this->getMembers($list);
-		if (is_array($members) && array_key_exists('entries', $members)) {
-			foreach ($members['entries'] as $m) {
+		if (is_array($members)) {
+			foreach ($members as $m) {
 				if (is_array($m) && array_key_exists('email', $m) && strcmp($m['email'], $email) === 0) {
 					$this->logger->info('findMember "'.$email.'" in "'.$list.'": ' . print_r($m, true));
 					return $m;
@@ -178,7 +225,7 @@ class MMService {
 	}
 		
 
-	public function subscribe(string $list, string $email) {
+	public function subscribe(string $list, string $email): bool {
 		$l = $this->post('members', [
 			'list_id' => $list.'.'.$this->domain,
 			'subscriber' => $email,
@@ -186,7 +233,7 @@ class MMService {
 			'pre_confirmed' => true,
 			'pre_approved' => true
 		]);
-		if ($l === false || strlen($l) > 0) {
+		if ($l === false || is_string($l) && strlen($l) > 0) {
 			$msg = ($l === false || strlen($l) === 0) ? "FAILED" : print_r($l, true);
 			$this->logger->error('subscribe "'.$email.'" to "'.$list.'": ' . $msg);
 			return false;
@@ -196,11 +243,11 @@ class MMService {
 		}
 	}
 
-	public function unsubscribe(string $list, string $email) {
+	public function unsubscribe(string $list, string $email): bool {
 		$m = $this->findMember($list, $email);
 		if (is_array($m) && array_key_exists('member_id', $m)) {
 			$l = $this->delete('members' . '/' . $m['member_id']);
-			if ($l === false || strlen($l) > 0) {
+			if ($l === false || is_string($l) && strlen($l) > 0) {
 				$this->logger->error('unsubscribe "'.$email.'" from "'.$list.'": ' . print_r($l, true));
 				return false;
 			} else {

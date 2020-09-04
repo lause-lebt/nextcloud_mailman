@@ -26,46 +26,69 @@ use OCP\IConfig;
 
 class ConfigService {
 
-    private $config;
+	private const KEYS_SERVER = [
+		'url', 'cred', 'domain', 'limit'
+	];
+
+	private const DEFAULTS = [
+		'url' => 'http://localhost:8001/3.1/',
+		'cred' => 'restadmin:RESTADMIN_PASSWORD',
+		'domain' => '',
+		'limit' => '3000',
+		'lists' => '[]'
+	];
+
+	/** @var IConfig */
+	private $config;
+	
+	/** @var string */
     private $appName;
 
     public function __construct(IConfig $config, $AppName){
         $this->config = $config;
         $this->appName = $AppName;
-
         $this->setDefaults();
     }
 
     private function setDefaults() {
-        
-        if (empty($this->getAppValue('url')) ) { 
-            $this->setAppValue('url','http://localhost:8001/3.1/') ;
-        }
-
-        if (empty($this->getAppValue('credentials')) ) { 
-            $this->setAppValue('credentials','restadmin:RESTADMIN_PASSWORD') ;
+		foreach (self::DEFAULTS as $key => $value) {
+			if (empty($this->getAppValue($key))) {
+				$this->setAppValue($key, $value);
+			}
+		}
 	}
 
-	if (empty($this->getAppValue('domain'))) {
-		$this->setAppValue('domain','');
-	}
-
-	if (empty($this->getAppValue('limit'))) {
-		$this->setAppValue('limit', '3000');
-	}
-
-	if (empty($this->getAppValue('lists'))) {
-		$this->setAppValue('exclude', json_encode(array()));
-	}
-
-    }
-
-    public function getAppValue($key) {
+    public function getAppValue(string $key) {
         return $this->config->getAppValue($this->appName, $key);
     }
 
-    public function setAppValue($key, $value) {
+    public function setAppValue(string $key, string $value) {
         $this->config->setAppValue($this->appName, $key, $value);
-    }
+	}
+	
+	public function getServerConfig() {
+		return [
+			'url' => $this->getAppValue('url'),
+			'cred' => $this->getAppValue('cred'),
+			'domain' => $this->getAppValue('domain'),
+			'limit' => intval($this->getAppValue('limit'))
+		];
+	}
+
+	public function setServerConfig(array $param) {
+		foreach (self::KEYS_SERVER as $key) {
+			if (array_key_exists($key, $param)) {
+				$this->setAppValue($key, strval($param[$key]));
+			}
+		}
+	} 
+
+	public function getLists(): array {
+		return json_decode($this->getAppValue('lists'), true);
+	}
+
+	public function setLists(array $data) {
+		$this->setAppValue('lists', json_encode($data));
+	}
 
 }

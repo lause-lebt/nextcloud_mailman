@@ -1,6 +1,6 @@
 <?php
 /**
- * @author 2020 Matthieu Florian Gmeiner <florian@tinkatinka.com>
+ * @author 2020 Florian Gmeiner <florian@tinkatinka.com>
  *
  * @license GNU AGPL version 3 or any later version
  *
@@ -36,36 +36,36 @@ class MmController extends Controller {
     }
     
     /**
-     * @NoAdminRequired
+     * NoAdminRequired
      * NoCSRFRequired
-     * @PublicPage
+     * PublicPage
     */
     public function lists() {
 	    return $this->mailman->getLists();
     }
 
     /**
-     * @NoAdminRequired
+     * NoAdminRequired
      * NoCSRFRequired
-     * @PublicPage
+     * PublicPage
      */
     public function members(string $list) {
 	    return $this->mailman->getMembers($list);
     }
 
     /**
-     * @NoAdminRequired
+     * NoAdminRequired
      * NoCSRFRequired
-     * @PublicPage
+     * PublicPage
      */
 	public function subscribe(string $list, string $email) {
 		return $this->mailman->subscribe($list, $email);
 	}
 
     /**
-     * @NoAdminRequired
+     * NoAdminRequired
      * NoCSRFRequired
-     * @PublicPage
+     * PublicPage
     */
 	public function unsubscribe(string $list, string $email) {
 		return $this->mailman->unsubscribe($list, $email);

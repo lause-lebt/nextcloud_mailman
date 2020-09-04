@@ -5,7 +5,7 @@
     <name>Mailman</name>
     <summary>Mailing list integration via GNU Mailman</summary>
     <description><![CDATA[Manage mailing lists for Nextcloud groups using an existing GNU Mailman3 installation]]></description>
-    <version>0.0.6</version>
+    <version>0.0.7</version>
     <licence>agpl</licence>
     <author mail="florian@tinkatinka.com" >Florian Gmeiner</author>
     <namespace>Mailman</namespace>

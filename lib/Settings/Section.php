@@ -1,6 +1,6 @@
 <?php
 /**
- * @copyright Copyright (c) 2017 Robin Appelman <robin@icewind.nl>
+ * @author 2020 Florian Gmeiner <florian@tinkatinka.com>
  *
  * @license GNU AGPL version 3 or any later version
  *

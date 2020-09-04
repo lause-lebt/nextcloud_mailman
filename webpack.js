@@ -5,7 +5,7 @@ const webpackConfig = require('@nextcloud/webpack-vue-config')
 
 const config = {
 	entry: {
-		submit: path.resolve(path.join('src', 'submit.js')),
+		settings: path.resolve(path.join('src', 'settings.js')),
 	},
 	module: {
 		rules: [
