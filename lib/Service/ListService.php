@@ -151,23 +151,6 @@ class ListService {
 		$subscribe = array();
 		$unsubscribe = array();
 
-		// create
-		foreach ($lists as $l) {
-			if (is_array($l) && array_key_exists('id', $l)) {
-				$this->logger->debug(
-					'Checking list "'.$l['id'].'" against MM lists',
-					[ 'json' => json_encode($this->mmlists) ]
-				);
-				$mml = $this->findMMList($l['id'], $this->mmlists);
-				if ($mml === false) {
-					$this->logger->debug('--> NOT FOUND, needs to be CREATED');
-					array_push($create, $l['id']);
-				} else {
-					$this->logger->debug('--> FOUND.');
-				}
-			}
-		}
-
 		// delete
 		foreach ($this->mmlists as $mml) {
 			if (is_array($mml) && array_key_exists('list_name', $mml)) {
@@ -193,11 +176,28 @@ class ListService {
 			}
 		}
 
+		// create
+		foreach ($lists as $l) {
+			if (is_array($l) && array_key_exists('id', $l)) {
+				$this->logger->debug(
+					'Checking list "'.$l['id'].'" against MM lists',
+					[ 'json' => json_encode($this->mmlists) ]
+				);
+				$mml = $this->findMMList($l['id'], $this->mmlists);
+				if ($mml === false) {
+					$this->logger->debug('--> NOT FOUND, needs to be CREATED');
+					array_push($create, $l['id']);
+				} else {
+					$this->logger->debug('--> FOUND.');
+				}
+			}
+		}
+
 		// subscribe
 		foreach ($lists as $l) {
 			if (is_array($l) && array_key_exists('id', $l)) {
 				$members = $this->listMembers($lists, $l['id']);
-				$mmmembers = $this->mmListMembers($l['id']);
+				$mmmembers = (!in_array($l['id'], $create)) ? $this->mmListMembers($l['id']) : [];
 				$this->logger->debug(
 					'Checking "'.$l['id'].'" list members ('
 					.implode(', ', $members).') against MM list members ('
@@ -218,7 +218,9 @@ class ListService {
 		// unsubscribe
 		if (is_array($this->mmlists)) {
 			foreach ($this->mmlists as $mml) {
-				if (is_array($mml) && array_key_exists('list_name', $mml)) {
+				if (is_array($mml) && array_key_exists('list_name', $mml)
+					&& !in_array($mml['list_name'], $delete)
+				) {
 					$mmmembers = $this->mmListMembers($mml['list_name']);
 					$members = $this->listMembers($lists, $mml['list_name']);
 					$this->logger->debug(

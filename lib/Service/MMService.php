@@ -96,7 +96,12 @@ class MMService {
 					break;
 				case 'post':
 					$response = $client->post($this->requestURL . '/' . $query, [
-						'body' => $data
+						'form_params' => $data
+					]);
+					break;
+				case 'put':
+					$response = $client->put($this->requestURL . '/' . $query, [
+						'form_params' => $data
 					]);
 					break;
 				case 'delete':
@@ -110,7 +115,7 @@ class MMService {
 				'Mailman "' . strtoupper($method) . '" query failed: '
 				. $query . ' -> ' . $e->getMessage()
 			);
-			throw new MailmanException($e->getMessage);
+			throw new MailmanException($e->getMessage());
 		}
 		$status = $response->getStatusCode();
 		$body = $response->getBody();
@@ -138,6 +143,10 @@ class MMService {
 
 	protected function post(string $query, $data) {
 		return $this->request('post', $query, $data);
+	}
+
+	protected function put(string $query, $data) {
+		return $this->request('put', $query, $data);
 	}
 
 	protected function delete(string $query) {
@@ -179,13 +188,15 @@ class MMService {
 	}
 
 	public function createList(string $list): bool {
-		$l = $this->post('lists', [
-			'fqdn_listname' => $list . '@' . $this->domain,
-			'display_name' => $list,
-			'subject_prefix' => '['.$list.']',
-			'subscription_policy' => 'moderate',
-			'max_message_size' => $this->limit
+		$l = array();
+		$l[] = $this->post('lists', [
+			'fqdn_listname' => $list . '@' . $this->domain
 		]);
+		$q = 'lists/' . $list . '.' . $this->domain . '/config';
+		$l[] = $this->put($q . '/display_name', [ 'display_name' => $list ]);
+		$l[] = $this->put($q . '/subject_prefix', [ 'subject_prefix' => '['.$list.']' ]);
+		$l[] = $this->put($q . '/subscription_policy', [ 'subscription_policy' => 'moderate' ]);
+//		$l[] = $this->put($q . '/max_message_size', [ 'max_message_size' => $this->limit ]);
 		$this->logger->info('createList "'.$list.'": ' . print_r($l, true));
 		return true;
 	}

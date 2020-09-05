@@ -4,6 +4,7 @@
 			<thead>
 				<tr>
 					<th>{{ t(appid, 'Name') }}</th>
+					<th />
 					<th>{{ t(appid, 'Groups') }}</th>
 					<th>{{ t(appid, 'Also') }}</th>
 				</tr>
@@ -12,6 +13,14 @@
 				<tr v-for="list in lists" :key="list.key">
 					<td>
 						<span class="list-id">{{ list.id }}</span>
+					</td>
+					<td>
+						<input
+							:id="'delete--' + list.id"
+							class="icon-close"
+							:disabled="loading"
+							type="button"
+							@click="deleteList(list)">
 					</td>
 					<td>
 						<Multiselect
@@ -39,9 +48,28 @@
 								class="extra-input form-control"
 								:disabled="loading"
 								:placeholder="t(appid, 'Additional email addresses')"
+								type="text"
 								@change="onExtraChange(list)">
 						</div>
 						<!--{{ JSON.stringify(list.extra) }}-->
+					</td>
+				</tr>
+				<tr>
+					<td>
+						<input
+							id="new-list-id"
+							v-model="newListID"
+							:disabled="loading"
+							:placeholder="t(appid, 'List ID')"
+							type="text">
+					</td>
+					<td colspan="2">
+						<input
+							type="submit"
+							class="primary"
+							:disabled="loading || !newListIDValid"
+							:value="t(appid, 'Create')"
+							@click="newList">
 					</td>
 				</tr>
 			</tbody>
@@ -105,6 +133,7 @@ export default {
 				}),
 				selectedExtra: v.extra.join(', '),
 			})),
+			newListID: null,
 			// mmlists: this.settings.mmlists,
 			preview: this.settings.preview,
 			groups: this.settings.groups,
@@ -143,6 +172,16 @@ export default {
 				|| this.preview.subscribe.length > 0
 				|| this.preview.unsubscribe.length > 0
 		},
+		newListIDValid() {
+			if (!this.newListID || typeof this.newListID !== 'string') {
+				return false
+			}
+			const nid = this.newListID.trim()
+			return (nid.length > 0
+				&& !nid.includes(' ')
+				&& !this.lists.map(l => l.id).includes(nid)
+			)
+		},
 	},
 	methods: {
 		importSettingsLists() {
@@ -172,17 +211,23 @@ export default {
 			// logger.info(this.splitEmails(list.selectedExtra).map(m => 'EMail "' + m + '" ' + (this.isEmailValid(m) ? 'VALID' : 'INVALID')).join('\n'))
 			return this.splitEmails(list.selectedExtra).every(m => this.isEmailValid(m))
 		},
-		updatePreview() {
+		updatePreview(onSuccess, onError) {
 			this.loading = true
 			getPreview({
 				lists: this.modifiedLists,
 			})
 				.then((p) => {
 					this.preview = p
+					if (onSuccess) {
+						onSuccess()
+					}
 				})
 				.catch((error) => {
 					showError(t(this.appid, 'Preview request failed: ' + error))
 					logger.error('Preview request failed', { error })
+					if (onError) {
+						onError()
+					}
 				})
 				.then(() => {
 					this.loading = false
@@ -217,6 +262,30 @@ export default {
 			) {
 				this.updatePreview()
 			}
+		},
+		newList() {
+			this.loading = true
+			const newKey = this.lists.length
+			this.lists.push({
+				id: this.newListID.trim(),
+				groups: [],
+				extra: [],
+				exclude: [],
+				key: newKey,
+				selectedGroups: [],
+				selectedExtra: '',
+			})
+			this.lists.sort((a, b) => a.id.localeCompare(b.id))
+			this.updatePreview(() => {
+				this.newListID = null
+			}, () => {
+				this.lists.pop()
+			})
+		},
+		deleteList(l) {
+			this.loading = true
+			this.lists.splice(l.key, 1)
+			this.updatePreview()
 		},
 		submit() {
 			this.loading = true
