@@ -15,12 +15,12 @@
 						<span class="list-id">{{ list.id }}</span>
 					</td>
 					<td>
-						<input
+						<a
 							:id="'delete--' + list.id"
-							class="icon-close"
+							class="icon icon-delete icon-visible"
 							:disabled="loading"
-							type="button"
-							@click="deleteList(list)">
+							:title="t(appid, 'Delete')"
+							@click="deleteList(list)" />
 					</td>
 					<td>
 						<Multiselect
@@ -275,7 +275,7 @@ export default {
 				selectedGroups: [],
 				selectedExtra: '',
 			})
-			this.lists.sort((a, b) => a.id.localeCompare(b.id))
+			// this.lists.sort((a, b) => a.id.localeCompare(b.id))
 			this.updatePreview(() => {
 				this.newListID = null
 			}, () => {
@@ -331,15 +331,15 @@ table {
 	min-width: 300px;
 }
 
-.group-input::v-deep .multiselect {
+.group-input::v-deep {
 	.multiselect__tag {
 		background: rgba(255, 225, 128, 0.5);
 	}
 }
-
+/*
 .multiselect__tag {
 	background: rgba(255, 225, 128, 0.5);
-}
+}*/
 
 .has-error {
 	border-color: #843534 !important;
@@ -368,6 +368,26 @@ table {
 	}
 	input {
 		margin: 0
+	}
+}
+
+tr:hover {
+	.icon {
+		opacity: 0.5;
+
+		&:hover {
+			opacity: 1;
+		}
+	}
+}
+
+.icon {
+	display: inline-block;
+	margin-left: 5px;
+	opacity: 0;
+
+	&.icon-visible {
+		opacity: 0.5;
 	}
 }
 
