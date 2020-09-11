@@ -1,6 +1,8 @@
 <?php
 /**
- * @author 2020 Florian Gmeiner <florian@tinkatinka.com>
+ * @copyright 2020 Florian Gmeiner <florian@tinkatinka.com>
+ *
+ * @author Florian Gmeiner <florian@tinkatinka.com>
  *
  * @license GNU AGPL version 3 or any later version
  *
@@ -26,8 +28,12 @@ use OCP\AppFramework\Http\JSONResponse;
 use OCP\IRequest;
 use OCP\ILogger;
 use OCP\IL10N;
+use OCP\IUser;
+use OCP\IUserManager;
+use OCP\IUserSession;
 
 use OCA\Mailman\Exception\MailmanException;
+use OCA\Mailman\Exception\UserNotFoundException;
 use OCA\Mailman\Service\ConfigService;
 use OCA\Mailman\Service\ListService;
 use OCA\Mailman\Service\MMService;
@@ -48,13 +54,22 @@ class ApiController extends Controller {
 	
 	/** @var IL10N */
 	protected $l;
-	
+
+	/** @var IUser */
+	private $currentUser;
+
+	/** @var IUserManager */
+	private $userManager;
+
+
     public function __construct(
 		$AppName,
 		IRequest $request,
 		ConfigService $configService,
 		MMService $mmService,
 		ListService $listService,
+		IUserManager $userManager,
+		IUserSession $userSession,
 		ILogger $logger,
 		IL10N $l
 	) {
@@ -65,8 +80,57 @@ class ApiController extends Controller {
 		$this->listService = $listService;
 		$this->logger = $logger;
 		$this->l = $l;
-    }
+		$this->userManager = $userManager;
+		$this->currentUser = $userSession->getUser();
+	}
+	
+	/**
+	 * @NoAdminRequired
+	 */
+	public function getUserLists(): JSONResponse {
+		try {
+			$lists = $this->listService->getUserLists($this->currentUser);
+			return new JSONResponse([
+				'lists' => $lists
+			]);
+		} catch (UserNotFoundException $e) {
+			return new JSONResponse([
+				'error' => $e->getMessage()
+			]);
+		}
+	}
+
+	/**
+	 * @NoAdminRequired
+	 */
+	public function subscribeUser(string $list): JSONResponse {
+		// $this->logger->info('Subscribe "'.$this->currentUser->getEMailAddress().'" to "'.$list.'"');
+		// return new JSONResponse(null);
+		try {
+			$this->listService->subscribeUser($this->currentUser, $list);
+			return new JSONResponse(null);
+		} catch (MailmanException $e) {
+			return new JSONResponse([
+				'error' => $e->getMessage()
+			]);
+		}
+	}
     
+	/**
+	 * @NoAdminRequired
+	 */
+	public function unsubscribeUser(string $list): JSONResponse {
+		// $this->logger->info('UnSubscribe "'.$this->currentUser->getEMailAddress().'" from "'.$list.'"');
+		// return new JSONResponse(null);
+		try {
+			$this->listService->unsubscribeUser($this->currentUser, $list);
+			return new JSONResponse(null);
+		} catch (MailmanException $e) {
+			return new JSONResponse([
+				'error' => $e->getMessage()
+			]);
+		}
+	}
     /**
      * NoAdminRequired
      * NoCSRFRequired
@@ -76,10 +140,24 @@ class ApiController extends Controller {
         return new JSONResponse($this->configService->getServerConfig());
 	}
 	
-	public function setServerConfig(string $url, string $cred, string $domain, int $limit): JSONResponse {
+	public function setServerConfig(string $url, string $cred, string $kitty, string $domain, int $limit): JSONResponse {
+		try {
+			$oldlimit = intval($this->configService->getAppValue('limit'));
+			$this->logger->info(
+				'ServerConfig limit='.$limit.' (old limit='.$oldlimit.')'
+			);
+			if ($limit !== $oldlimit) {
+				$this->mmService->updateLimit($limit);
+			}
+		} catch (MailmanException $e) {
+			return new JSONResponse([
+				'error' => $e->getMessage()
+			]);
+		}
 		$this->configService->setServerConfig([
 			'url' => $url,
 			'cred' => $cred,
+			'kitty' => $kitty,
 			'domain' => $domain,
 			'limit' => $limit
 		]);
@@ -102,11 +180,38 @@ class ApiController extends Controller {
 	}
 
 	public function setListData($lists): JSONResponse {
-		$this->logger->info('[ApiController] setListData: '.print_r($lists, true));
+		$this->logger->debug(
+			'[ApiController] setListData: '.print_r($lists, true)
+		);
 		try {
 			$this->configService->setLists($lists);
 			$actions = $this->listService->checkLists($lists);
 			$this->listService->updateLists($actions);
+		} catch (MailmanException $e) {
+			return new JSONResponse([
+				'error' => $e->getMessage()
+			]);
+		}
+		return new JSONResponse(null);
+	}
+
+	public function updateListData($listid): JSONResponse {
+		$params = $this->request->getParams();
+		$this->logger->debug(
+			'[ApiController] updateListData: '.print_r($params, true)
+		);
+		try {
+			if (array_key_exists('show', $params)) {
+				$l = $this->listService->findList(null, $listid);
+				$oldshow = (is_array($l) && array_key_exists('show', $l) && boolval($l['show']));
+				$newshow = boolval($params['show']);
+				if ($oldshow !== $newshow) {
+					$this->mmService->updateNonMembers($listid, $newshow);
+				}
+			}
+			if (!$this->configService->updateList($listid, $params)) {
+				throw new MailmanException('Update failed');
+			}
 		} catch (MailmanException $e) {
 			return new JSONResponse([
 				'error' => $e->getMessage()
@@ -126,7 +231,9 @@ class ApiController extends Controller {
 */
 //		$lists = $params;
 		$preview = $this->listService->checkLists($lists);
-		$this->logger->info('[ApiController] preview: '.print_r($preview, true));
+		$this->logger->debug(
+			'[ApiController] preview: '.print_r($preview, true)
+		);
 		return new JSONResponse($preview);
 	}
 

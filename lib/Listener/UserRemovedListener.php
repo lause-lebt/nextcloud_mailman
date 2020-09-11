@@ -21,9 +21,34 @@
  *
  */
 
-namespace OCA\Mailman\Exception;
+namespace OCA\Mailman\Listener;
 
-use Exception;
+use OCP\IGroup;
+use OCP\IUser;
+use OCP\EventDispatcher\Event;
+use OCP\EventDispatcher\IEventListener;
+use OCP\Group\Events\UserRemovedEvent;
 
-class MailmanException extends Exception {
+use OCA\Mailman\Service\ListService;
+
+class UserRemovedListener implements IEventListener {
+
+	/** @var ListService */
+	private $listService;
+	
+	public function __construct(ListService $listService) {
+        $this->listService = $listService;
+	}
+		
+	public function handle(Event $event): void {
+		if (!($event instanceof UserRemovedEvent)) {
+			return;
+		}
+		/** @var IGroup */
+		$group = $event->getGroup();
+		/** @var IUser */
+		$user = $event->getUser();
+		$this->listService->onUserRemoved($group, $user);
+	}
+
 }

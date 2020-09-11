@@ -1,0 +1,81 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the Nextcloud package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: Nextcloud 3.14159\n"
+"Report-Msgid-Bugs-To: translations\\@example.com\n"
+"POT-Creation-Date: 2020-09-10 17:52+0200\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: /Users/fgmeiner/Documents/projects/lause/nextcloud/mailman/lib/Settings/Section.php:59
+#: /Users/fgmeiner/Documents/projects/lause/nextcloud/mailman/specialAppInfoFakeDummyForL10nScript.php:2
+msgid "Mailman"
+msgstr ""
+
+#: /Users/fgmeiner/Documents/projects/lause/nextcloud/mailman/specialAppInfoFakeDummyForL10nScript.php:3
+msgid "Mailing list integration via GNU Mailman"
+msgstr ""
+
+#: /Users/fgmeiner/Documents/projects/lause/nextcloud/mailman/specialAppInfoFakeDummyForL10nScript.php:4
+msgid ""
+"Manage mailing lists for Nextcloud groups using an existing GNU Mailman3 "
+"installation"
+msgstr ""
+
+#: /Users/fgmeiner/Documents/projects/lause/nextcloud/mailman/specialVueFakeDummyForL10nScript.js:1
+#: /Users/fgmeiner/Documents/projects/lause/nextcloud/mailman/specialVueFakeDummyForL10nScript.js:3
+msgid "Loading {title} …"
+msgstr ""
+
+#: /Users/fgmeiner/Documents/projects/lause/nextcloud/mailman/specialVueFakeDummyForL10nScript.js:2
+#: /Users/fgmeiner/Documents/projects/lause/nextcloud/mailman/specialVueFakeDummyForL10nScript.js:6
+msgid "Error loading mailing list archive"
+msgstr ""
+
+#: /Users/fgmeiner/Documents/projects/lause/nextcloud/mailman/specialVueFakeDummyForL10nScript.js:4
+msgid "Members of"
+msgstr ""
+
+#: /Users/fgmeiner/Documents/projects/lause/nextcloud/mailman/specialVueFakeDummyForL10nScript.js:5
+msgid "Additional Members"
+msgstr ""
+
+#: /Users/fgmeiner/Documents/projects/lause/nextcloud/mailman/templates/notfound.php:26
+msgid "Mailing list not found"
+msgstr ""
+
+#: /Users/fgmeiner/Documents/projects/lause/nextcloud/mailman/templates/notfound.php:27
+msgid "This mailing list does not exist"
+msgstr ""
+
+
+msgid "My lists"
+msgstr ""
+
+msgid "Other lists"
+msgstr ""
+
+msgid "Subscribe"
+msgstr ""
+
+msgid "Unsubscribe"
+msgstr ""
+
+msgid "Subscribe or unsubscribe to mailing lists"
+msgstr ""
+
+msgid "(Using the button next to the name of the list in the sidebar)"
+msgstr ""
+
+msgid "You don\'t have access to any mailing lists"
+msgstr ""

@@ -21,9 +21,31 @@
  *
  */
 
-namespace OCA\Mailman\Exception;
+namespace OCA\Mailman\Listener;
 
-use Exception;
+use OCP\IGroup;
+use OCP\EventDispatcher\Event;
+use OCP\EventDispatcher\IEventListener;
+use OCP\Group\Events\GroupDeletedEvent;
 
-class MailmanException extends Exception {
+use OCA\Mailman\Service\ListService;
+
+class GroupDeletedListener implements IEventListener {
+
+	/** @var ListService */
+	private $listService;
+	
+	public function __construct(ListService $listService) {
+        $this->listService = $listService;
+	}
+		
+	public function handle(Event $event): void {
+		if (!($event instanceof GroupDeletedEvent)) {
+			return;
+		}
+		/** @var IGroup */
+		$group = $event->getGroup();
+		$this->listService->onGroupDeleted($group);
+	}
+
 }

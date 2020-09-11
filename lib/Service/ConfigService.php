@@ -1,6 +1,8 @@
 <?php
 /**
- * @author 2020 Florian Gmeiner <florian@tinkatinka.com>
+ * @copyright 2020 Florian Gmeiner <florian@tinkatinka.com>
+ *
+ * @author Florian Gmeiner <florian@tinkatinka.com>
  *
  * @license GNU AGPL version 3 or any later version
  *
@@ -27,14 +29,19 @@ use OCP\IConfig;
 class ConfigService {
 
 	private const KEYS_SERVER = [
-		'url', 'cred', 'domain', 'limit'
+		'url', 'cred', 'kitty', 'domain', 'limit'
+	];
+
+	private const KEYS_LIST = [
+		'id', 'groups', 'show', 'extra', 'exclude'
 	];
 
 	private const DEFAULTS = [
 		'url' => 'http://localhost:8001/3.1/',
 		'cred' => 'restadmin:RESTADMIN_PASSWORD',
-		'domain' => '',
-		'limit' => '3000',
+		'kitty' => 'http://localhost:8100/hyperkitty',
+		'domain' => 'lists.example.com',
+		'limit' => '1000',
 		'lists' => '[]'
 	];
 
@@ -42,8 +49,8 @@ class ConfigService {
 	private $config;
 	
 	/** @var string */
-    private $appName;
-
+	private $appName;
+	
     public function __construct(IConfig $config, $AppName){
         $this->config = $config;
         $this->appName = $AppName;
@@ -70,6 +77,7 @@ class ConfigService {
 		return [
 			'url' => $this->getAppValue('url'),
 			'cred' => $this->getAppValue('cred'),
+			'kitty' => $this->getAppValue('kitty'),
 			'domain' => $this->getAppValue('domain'),
 			'limit' => intval($this->getAppValue('limit'))
 		];
@@ -89,6 +97,69 @@ class ConfigService {
 
 	public function setLists(array $data) {
 		$this->setAppValue('lists', json_encode($data));
+	}
+
+	public function updateList(string $id, array $data) {
+		$lists = $this->getLists();
+		for ($i = 0; $i < count($lists); $i++) {
+			$l = $lists[$i];
+			if (is_array($l) && array_key_exists('id', $l)
+				&& strcmp($l['id'], $id) === 0
+			) {
+				$updated = false;
+				foreach ($data as $key => $value) {
+					if (in_array($key, self::KEYS_LIST) && $key !== 'id') {
+						$lists[$i][$key] = $value;
+						$updated = true;
+					}
+				}
+				$this->setLists($lists);
+				return $updated;
+			}
+		}
+		return false;
+	}
+
+	public function addExclude(string $list, string $email): bool {
+		$lists = $this->getLists();
+		for ($i = 0; $i < count($lists); $i++) {
+			$l = $lists[$i];
+			if (is_array($l) && array_key_exists('id', $l)
+				&& strcmp($l['id'], $list) === 0
+			) {
+				if (array_key_exists('exclude', $l)) {
+					if (!in_array($email, $l['exclude'])) {
+						$lists[$i]['exclude'][] = $email;
+					}
+				} else {
+					$lists[$i]['exclude'] = [ $email ];
+				}
+				$this->setLists($lists);
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public function removeExclude(string $list, string $email): bool {
+		$lists = $this->getLists();
+		for ($i = 0; $i < count($lists); $i++) {
+			$l = $lists[$i];
+			if (is_array($l) && array_key_exists('id', $l)
+				&& strcmp($l['id'], $list) === 0
+			) {
+				if (array_key_exists('exclude', $l)
+					&& in_array($email, $l['exclude'])
+				) {
+					$lists[$i]['exclude'] = array_diff($l['exclude'], [ $email ]);
+					$this->setLists($lists);
+					return true;
+				} else {
+					return false;
+				}
+			}
+		}
+		return false;
 	}
 
 }

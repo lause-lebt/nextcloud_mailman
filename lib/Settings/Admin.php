@@ -1,6 +1,8 @@
 <?php
 /**
- * @author 2020 Florian Gmeiner <florian@tinkatinka.com>
+ * @copyright 2020 Florian Gmeiner <florian@tinkatinka.com>
+ *
+ * @author Florian Gmeiner <florian@tinkatinka.com>
  *
  * @license GNU AGPL version 3 or any later version
  *
@@ -91,6 +93,7 @@ class Admin implements ISettings {
 	public function getForm() {
 		$url = $this->config->getAppValue('url');
 		$cred = $this->config->getAppValue('cred');
+		$kitty = $this->config->getAppValue('kitty');
 		$domain = $this->config->getAppValue('domain');
 		$limit = intval($this->config->getAppValue('limit'));
 		$lists = $this->config->getLists();
@@ -102,6 +105,7 @@ class Admin implements ISettings {
 			'status' => $this->mm->getStatus(),
 			'url' => $url,
 			'cred' => $cred,
+			'kitty' => $kitty,
 			'domain' => $domain,
 			'limit' => $limit,
 			'lists' => $lists,

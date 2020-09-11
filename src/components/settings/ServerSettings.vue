@@ -45,6 +45,20 @@
 			</div>
 			<div class="settings-group">
 				<div class="group-title">
+					{{ t(appid, "Hyperkitty") }}
+				</div>
+				<div class="group-inputs">
+					<label for="mailman-settings-kitty"> {{ t(appid, 'URL') }} </label>
+					<input
+						id="mailman-settings-kitty"
+						v-model="kitty"
+						:disabled="loading"
+						name="kitty"
+						type="text">
+				</div>
+			</div>
+			<div class="settings-group">
+				<div class="group-title">
 					{{ t(appid, 'List attributes') }}
 				</div>
 				<div class="group-inputs">
@@ -67,7 +81,7 @@
 						id="mailman-settings-limit"
 						v-model="limit"
 						:disabled="loading"
-						name="domain"
+						name="limit"
 						type="number">
 				</div>
 			</div>
@@ -104,6 +118,7 @@ export default {
 			status: this.settings.status,
 			url: this.settings.url,
 			cred: this.settings.cred,
+			kitty: this.settings.kitty,
 			domain: this.settings.domain,
 			limit: this.settings.limit,
 			loading: false,
@@ -114,6 +129,7 @@ export default {
 			return (
 				this.url !== this.settings.url
 				|| this.cred !== this.settings.cred
+				|| this.kitty !== this.settings.kitty
 				|| this.domain !== this.settings.domain
 				|| this.limit !== this.settings.limit
 			)
@@ -128,6 +144,7 @@ export default {
 			const newSettings = {
 				url: this.url,
 				cred: this.cred,
+				kitty: this.kitty,
 				domain: this.domain,
 				limit: this.limit,
 			}

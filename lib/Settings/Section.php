@@ -1,6 +1,8 @@
 <?php
 /**
- * @author 2020 Florian Gmeiner <florian@tinkatinka.com>
+ * @copyright 2020 Florian Gmeiner <florian@tinkatinka.com>
+ *
+ * @author Florian Gmeiner <florian@tinkatinka.com>
  *
  * @license GNU AGPL version 3 or any later version
  *
@@ -41,7 +43,7 @@ class Section implements IIconSection {
 	 * returns the ID of the section. It is supposed to be a lower case string,
 	 * e.g. 'ldap'
 	 *
-	 * @returns string
+	 * @return string
 	 */
 	public function getID() {
 		return 'mailman';
@@ -72,6 +74,6 @@ class Section implements IIconSection {
 	 * {@inheritdoc}
 	 */
 	public function getIcon() {
-		return $this->url->imagePath('mailman', 'app-dark.svg');
+		return $this->url->imagePath('mailman', 'mail-dark.svg');
 	}
 }

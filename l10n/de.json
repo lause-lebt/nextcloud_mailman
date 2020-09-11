@@ -1,0 +1,19 @@
+{ "translations": {
+    "Mailman" : "Mailman",
+    "Mailing list integration via GNU Mailman" : "Mailinglisten Integration via GNU Mailman",
+    "Manage mailing lists for Nextcloud groups using an existing GNU Mailman3 installation" : "Verwaltung von Mailinglisten für Nextcloud-Gruppen unter Verwendungeiner bestehenden GNU Mailman3 Installation",
+    "Loading {title} …" : "Lade {title} …",
+    "Error loading mailing list archive" : "Fehler beim Laden des Archivs",
+    "Members of" : "Mitglieder von",
+    "Additional Members" : "Zusätzliche Mitglieder",
+    "Mailing list not found" : "Mailingliste nicht gefunden",
+    "This mailing list does not exist" : "Diese Mailingliste existiert nicht",
+    "My lists" : "Meine Listen",
+    "Other lists" : "Weitere Listen",
+    "Subscribe" : "Abbonieren",
+    "Unsubscribe" : "Abbestellen",
+    "Subscribe or unsubscribe to mailing lists" : "Abbonieren und Abbstellen von Mailinglisten",
+    "(Using the button next to the name of the list in the sidebar)" : "(Mithilfe des Buttons neben den Listen links)",
+    "You don\\'t have access to any mailing lists" : "Sie haben keinen Zugang zu Mailinglisten"
+},"pluralForm" :"nplurals=2; plural=(n != 1);"
+}

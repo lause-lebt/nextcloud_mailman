@@ -26,6 +26,9 @@ import Vue from 'vue'
 import Router from 'vue-router'
 import { generateUrl } from '@nextcloud/router'
 
+// import Archive from './views/Archive'
+import ListInfo from './views/ListInfo'
+
 Vue.use(Router)
 
 export default new Router({
@@ -40,6 +43,15 @@ export default new Router({
 		{
 			path: '/',
 			name: 'root',
+		},
+		{
+			path: '/list/:id',
+			components: {
+				default: ListInfo,
+				// sidebar: Sidebar,
+			},
+			name: 'listRoot',
+			props: { default: true },
 		},
 	],
 })

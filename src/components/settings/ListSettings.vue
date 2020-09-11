@@ -5,6 +5,7 @@
 				<tr>
 					<th>{{ t(appid, 'Name') }}</th>
 					<th />
+					<th>{{ t(appid, 'Show') }}</th>
 					<th>{{ t(appid, 'Groups') }}</th>
 					<th>{{ t(appid, 'Also') }}</th>
 				</tr>
@@ -21,6 +22,16 @@
 							:disabled="loading"
 							:title="t(appid, 'Delete')"
 							@click="deleteList(list)" />
+					</td>
+					<td class="column-show">
+						<input
+							:id="'show--' + list.id"
+							v-model="list.show"
+							class="show-input"
+							:disabled="loading"
+							:title="t(appid, 'Show')"
+							type="checkbox"
+							@change="onShowChange(list)">
 					</td>
 					<td>
 						<Multiselect
@@ -98,7 +109,7 @@ import Multiselect from '@nextcloud/vue/dist/Components/Multiselect'
 import { showError } from '@nextcloud/dialogs'
 import Preview from './Preview'
 import logger from '../../logger'
-import { getPreview, setListData } from '../../service/SettingsService'
+import { getPreview, setListData, updateListData } from '../../service/SettingsService'
 
 export default {
 	name: 'ListSettings',
@@ -156,6 +167,7 @@ export default {
 			return this.lists.map(v => {
 				return {
 					id: v.id,
+					show: v.show,
 					groups: v.selectedGroups
 						.map(g => g.gid),
 					extra: v.selectedExtra
@@ -207,8 +219,11 @@ export default {
 			return (email === '') ? true : this.emailreg.test(email)
 		},
 		extraMailsValid(list) {
-			// logger.info('Splitting "' + list.selectedExtra + '"...', { addresses: this.splitEmails(list.selectedExtra) })
-			// logger.info(this.splitEmails(list.selectedExtra).map(m => 'EMail "' + m + '" ' + (this.isEmailValid(m) ? 'VALID' : 'INVALID')).join('\n'))
+			// logger.info('Splitting "' + list.selectedExtra + '"...',
+			// { addresses: this.splitEmails(list.selectedExtra) })
+			// logger.info(this.splitEmails(list.selectedExtra).map(
+			// m => 'EMail "' + m + '" ' + (this.isEmailValid(m)
+			// ? 'VALID' : 'INVALID')).join('\n'))
 			return this.splitEmails(list.selectedExtra).every(m => this.isEmailValid(m))
 		},
 		updatePreview(onSuccess, onError) {
@@ -241,6 +256,13 @@ export default {
 				unsubscribe: [],
 			}
 		},
+		onShowChange(l) {
+			logger.info('onShowChange: ', {
+				listID: l.id,
+				show: l.show,
+			})
+			this.updateData(l.id, 'show', l.show)
+		},
 		onGroupChange(g, i) {
 			const lid = i.replace('group-select--', '')
 			logger.info('onGroupChange: ', {
@@ -271,6 +293,7 @@ export default {
 				groups: [],
 				extra: [],
 				exclude: [],
+				show: true,
 				key: newKey,
 				selectedGroups: [],
 				selectedExtra: '',
@@ -287,6 +310,30 @@ export default {
 			this.lists.splice(l.key, 1)
 			this.updatePreview()
 		},
+		updateData(listid, key, value) {
+			this.loading = true
+			updateListData(listid, { [key]: value })
+				.then((d) => {
+					if (d && Object.prototype.hasOwnProperty.call(d, 'error')) {
+						showError(t(this.appid, 'Updating list data failed: ') + d.error)
+						logger.error('Updating list data failed', d.error)
+					} else {
+						const idx = this.settings.lists.findIndex(l => l.id === listid)
+						if (idx >= 0) {
+							this.settings.lists[idx][key] = value
+						} else {
+							logger.error('Setting property "' + key + '" for "' + listid + '" failed')
+						}
+					}
+				})
+				.catch((error) => {
+					showError(t(this.appid, 'Updating list data failed: ') + error)
+					logger.error('Updating list data failed', { error })
+				})
+				.then(() => {
+					this.loading = false
+				})
+		},
 		submit() {
 			this.loading = true
 			setListData({
@@ -294,7 +341,7 @@ export default {
 			})
 				.then((d) => {
 					if (d && Object.prototype.hasOwnProperty.call(d, 'error')) {
-						showError(t(this.appid, 'Submitting list data failed: ' + d.error))
+						showError(t(this.appid, 'Submitting list data failed: ') + d.error)
 						logger.error('Set list data failed', d.error)
 					} else {
 						this.settings.lists = this.modifiedLists
@@ -303,7 +350,7 @@ export default {
 					}
 				})
 				.catch((error) => {
-					showError(t(this.appid, 'Submitting list data failed: ' + error))
+					showError(t(this.appid, 'Submitting list data failed: ') + error)
 					logger.error('Set list data failed', { error })
 				})
 				.then(() => {
@@ -321,6 +368,14 @@ export default {
 <style lang="scss" scoped>
 table {
 	border-spacing: 10px;
+}
+
+.column-show {
+	text-align: center;
+}
+
+input[type='checkbox'] {
+	cursor: pointer;
 }
 
 .list-id {

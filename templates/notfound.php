@@ -1,7 +1,6 @@
+<?php
 /**
- * @copyright Copyright (c) 2019 John Molakvoæ <skjnldsv@protonmail.com>
- *
- * @author John Molakvoæ <skjnldsv@protonmail.com>
+ * @author Florian Gmeiner <florian@tinkatinka.com>
  *
  * @license GNU AGPL version 3 or any later version
  *
@@ -20,20 +19,10 @@
  *
  */
 
-export default {
-	data() {
-		return {
-			SHARE_TYPES: {
-				SHARE_TYPE_USER: OC.Share.SHARE_TYPE_USER,
-				SHARE_TYPE_GROUP: OC.Share.SHARE_TYPE_GROUP,
-				SHARE_TYPE_LINK: OC.Share.SHARE_TYPE_LINK,
-				SHARE_TYPE_EMAIL: OC.Share.SHARE_TYPE_EMAIL,
-				SHARE_TYPE_REMOTE: OC.Share.SHARE_TYPE_REMOTE,
-				SHARE_TYPE_CIRCLE: OC.Share.SHARE_TYPE_CIRCLE,
-				SHARE_TYPE_GUEST: OC.Share.SHARE_TYPE_GUEST,
-				SHARE_TYPE_REMOTE_GROUP: OC.Share.SHARE_TYPE_REMOTE_GROUP,
-				SHARE_TYPE_ROOM: OC.Share.SHARE_TYPE_ROOM,
-			},
-		}
-	},
-}
+?>
+
+<div id="emptycontent" class="">
+	<div class="icon-mail"></div>
+	<h2><?php p($l->t('Mailing list not found')); ?></h2>
+	<p><?php p($l->t('This mailing list does not exist')); ?></p>
+</div>

@@ -1,5 +1,7 @@
 <?php
 /**
+ * @copyright 2020 Florian Gmeiner <florian@tinkatinka.com>
+ *
  * @author Florian Gmeiner <florian@tinkatinka.com>
  *
  * @license GNU AGPL version 3 or any later version
@@ -15,9 +17,22 @@
  * GNU Affero General Public License for more details.
  *
  * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <http://www.gnu.org/licenses/>.
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  */
-?>
 
-<div id="content"></div>
+namespace OCA\Mailman\Exception;
+
+use OCP\IUser;
+use OCA\Mailman\Exception\MailmanException;
+
+class UserNotFoundException extends MailmanException {
+
+	/** @var IUser */
+	public $user;
+
+	public function __construct(IUser $user) {
+		$this->user = $user;
+		parent::__construct('User not found: ' + $user->getUserId());
+	}
+}

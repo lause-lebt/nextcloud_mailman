@@ -1,6 +1,8 @@
 <?php
 /**
- * @author 2020 Florian Gmeiner <florian@tinkatinka.com>
+ * @copyright 2020 Florian Gmeiner <florian@tinkatinka.com>
+ *
+ * @author Florian Gmeiner <florian@tinkatinka.com>
  *
  * @license GNU AGPL version 3 or any later version
  *
@@ -27,6 +29,7 @@ use OCA\Mailman\Exception\MailmanException;
 use OCP\AppFramework\Http;
 use OCP\Http\Client\IClient;
 use OCP\Http\Client\IClientService;
+use OCP\IUserManager;
 use OCP\ILogger;
 
 use GuzzleHttp\Exception\ClientException;
@@ -39,6 +42,9 @@ class MMService {
 
 	/** @var IClientService */
 	private $clientService;
+
+	/** @var IUserManager */
+	private $userManager;
 
 	/** @var string */
 	private $appName;
@@ -63,9 +69,16 @@ class MMService {
 
 
 
-	public function __construct(ConfigService $config, IClientService $clientService, ILogger $logger, $AppName) {
+	public function __construct(
+		ConfigService $config,
+		IClientService $clientService,
+		IUserManager $userManager,
+		ILogger $logger,
+		$AppName
+	) {
 		$this->config = $config;
 		$this->clientService = $clientService;
+		$this->userManager = $userManager;
 		$this->appName = $AppName;
 		$this->logger = $logger;
 		$this->url = $config->getAppValue('url');
@@ -87,7 +100,7 @@ class MMService {
 		$this->requestURL = $scheme . '://' . $this->cred . '@' . $host;
 	}
 
-	protected function request(string $method, string $query, $data = null) {
+	protected function request(string $method, string $query, $data = null, $type = 'form_params') {
 		try {
 			$client = $this->clientService->newClient();
 			switch (strtolower($method)) {
@@ -96,12 +109,12 @@ class MMService {
 					break;
 				case 'post':
 					$response = $client->post($this->requestURL . '/' . $query, [
-						'form_params' => $data
+						$type => $data
 					]);
 					break;
 				case 'put':
 					$response = $client->put($this->requestURL . '/' . $query, [
-						'form_params' => $data
+						$type => $data
 					]);
 					break;
 				case 'delete':
@@ -187,16 +200,32 @@ class MMService {
 		}
 	}
 
-	public function createList(string $list): bool {
+	public function allUsers(): array {
+		$emails = array();
+		$users = $this->userManager->search('');
+		foreach ($users as $u) {
+			$e = $u->getEMailAddress();
+			if (is_string($e) && strlen($e) > 0) {
+				array_push($emails, $e);
+			}
+		}
+		return $emails;
+	}
+
+	public function createList(string $list, bool $public): bool {
 		$l = array();
 		$l[] = $this->post('lists', [
 			'fqdn_listname' => $list . '@' . $this->domain
 		]);
 		$q = 'lists/' . $list . '.' . $this->domain . '/config';
 		$l[] = $this->put($q . '/display_name', [ 'display_name' => $list ]);
-		$l[] = $this->put($q . '/subject_prefix', [ 'subject_prefix' => '['.$list.']' ]);
+		$l[] = $this->put($q . '/subject_prefix', [ 'subject_prefix' => '['.$list.'] ' ]);
 		$l[] = $this->put($q . '/subscription_policy', [ 'subscription_policy' => 'moderate' ]);
-//		$l[] = $this->put($q . '/max_message_size', [ 'max_message_size' => $this->limit ]);
+		$l[] = $this->put($q . '/max_message_size', [ 'max_message_size' => $this->limit ]);
+		if ($public) {
+			$emails = $this->allUsers();
+			$l[] = $this->put($q . '/accept_these_nonmembers', [ 'accept_these_nonmembers' => $emails ]);
+		}
 		$this->logger->info('createList "'.$list.'": ' . print_r($l, true));
 		return true;
 	}
@@ -226,7 +255,7 @@ class MMService {
 		if (is_array($members)) {
 			foreach ($members as $m) {
 				if (is_array($m) && array_key_exists('email', $m) && strcmp($m['email'], $email) === 0) {
-					$this->logger->info('findMember "'.$email.'" in "'.$list.'": ' . print_r($m, true));
+					$this->logger->debug('findMember "'.$email.'" in "'.$list.'": ' . print_r($m, true));
 					return $m;
 				}
 			}
@@ -234,7 +263,6 @@ class MMService {
 		$this->logger->error('findMember "'.$email.'" in "'.$list.'": FAILED');
 		return false;
 	}
-		
 
 	public function subscribe(string $list, string $email): bool {
 		$l = $this->post('members', [
@@ -270,6 +298,20 @@ class MMService {
 			return false;
 		}
 	}
-		
+
+	public function updateLimit(int $limit) {
+		foreach ($this->getLists() as $l) {
+			if (is_array($l) && array_key_exists('list_name', $l)) {
+				$q = 'lists/' . $l['list_name'] . '.' . $this->domain . '/config/max_message_size';
+				$this->put($q, [ 'max_message_size' => $limit ]);
+			}
+		}
+	}
+
+	public function updateNonMembers(string $list, bool $public) {
+		$q = 'lists/' . $list . '.' . $this->domain . '/config/accept_these_nonmembers';
+		$emails = $public ? $this->allUsers() : [];
+		$this->put($q, [ 'accept_these_nonmembers' => $emails ], 'json');
+	}
 
 }

@@ -1,15 +1,39 @@
 <?php
-namespace OCA\Mailman\Service;
+/**
+ * @copyright 2020 Florian Gmeiner <florian@tinkatinka.com>
+ *
+ * @author Florian Gmeiner <florian@tinkatinka.com>
+ *
+ * @license GNU AGPL version 3 or any later version
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as
+ * published by the Free Software Foundation, either version 3 of the
+ * License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ *
+ */
+
+ namespace OCA\Mailman\Service;
 
 use OCP\IL10N;
 use OCP\ILogger;
+use OCP\IGroup;
 use OCP\IGroupManager;
+use OCP\IUser;
 
 use OCA\Mailman\Service\ConfigService;
 use OCA\Mailman\Service\MMService;
 
-use Exception;
 use OCA\Mailman\Exception\MailmanException;
+use OCA\Mailman\Exception\UserNotFoundException;
 
 class ListService {
 
@@ -32,7 +56,7 @@ class ListService {
 	private $groupManager;
 
 	/** @var array */
-	private $mmlists;
+	private $_mmlists;
 	
 
     public function __construct(
@@ -50,10 +74,56 @@ class ListService {
 		$this->l = $l;
 		$this->appName = $AppName;
 
-		$this->mmlists = $this->mm->getLists();
-    }
+		$this->_mmlists = null;
+	}
 
-	private function findList(array $lists, string $name) {
+	private function mmlists(): array {
+		if ($this->_mmlists === null) {
+			$this->_mmlists = $this->mm->getLists();
+		}
+		return $this->_mmlists;
+	}
+	
+	private function traverseLists(array $lists, $callback) {
+		foreach ($lists as $l) {
+			if (is_array($l) && array_key_exists('id', $l)) {
+				$callback($l['id']);
+			} else {
+				$this->logger->warning(
+					'[ListService] No list id found ('.print_r($l, true).')'
+				);
+			}
+		}
+	}
+
+	private function traverseMMLists($callback) {
+		foreach ($this->mmlists() as $mml) {
+			if (is_array($mml) && array_key_exists('list_name', $mml)) {
+				$callback($mml['list_name']);
+			} else {
+				$this->logger->warning(
+					'[ListService] No mmlist name found ('.print_r($mml, true).')'
+				);
+			}
+		}
+	}
+
+	private function listsFromConfig(): array {
+		$lists = $this->config->getLists();
+		if (!is_array($lists)) {
+			$this->logger->warning(
+				'[ListService] Config failure "lists"',
+				[ 'data' => print_r($lists, true) ]
+			);
+			$lists = [];	
+		}
+		return $lists;
+	}
+
+	public function findList(?array $lists, string $name) {
+		if ($lists === null) {
+			$lists = $this->listsFromConfig();
+		}
 		foreach ($lists as $l) {
 			if (is_array($l) && array_key_exists('id', $l)) {
 				if (strcmp($l['id'], $name) === 0) {
@@ -61,7 +131,7 @@ class ListService {
 				}
 			} else {
 				$this->logger->warning(
-					'findList: no list id found ('.print_r($l, true).')'
+					'[ListService] No list id found ('.print_r($l, true).')'
 				);
 			}
 		}
@@ -69,7 +139,7 @@ class ListService {
 	}
 
 	private function findMMList(string $name) {
-		foreach ($this->mmlists as $l) {
+		foreach ($this->mmlists() as $l) {
 			if (is_array($l) && array_key_exists('list_name', $l) &&
 				strcmp($l['list_name'], $name) === 0)
 			{
@@ -84,15 +154,15 @@ class ListService {
 		$users = $group->getUsers();
 		$emails = array();
 		foreach ($users as $u) {
-			$e = $u->getEmailAddress();
-			if (is_string($e)) {
+			$e = $u->getEMailAddress();
+			if (is_string($e) && strlen($e) > 0) {
 				array_push($emails, $e);
 			}
 		}
 		return $emails;
 	}
 
-	private function listMembers(array $lists, string $name) {
+	public function listMembers(array $lists, string $name, bool $includeUnsubscribed = false) {
 		$emails = array();
 		$list = $this->findList($lists, $name);
 		if (is_array($list)) {
@@ -100,8 +170,10 @@ class ListService {
 			foreach ($groups as $g) {
 				$emails = array_merge($emails, $this->groupMembers($g));
 			}
-			$exclude = (array_key_exists('exclude', $list)) ? $list['exclude'] : [];
-			$emails = array_diff($emails, $exclude);
+			if (!$includeUnsubscribed) {
+				$exclude = (array_key_exists('exclude', $list)) ? $list['exclude'] : [];
+				$emails = array_diff($emails, $exclude);
+			}
 			$extra = (array_key_exists('extra', $list)) ? $list['extra'] : [];
 			$emails = array_merge($emails, $extra);
 		}
@@ -133,17 +205,222 @@ class ListService {
 		}, $groups);
 	}
 
+	public function getEmail(IUser $user): string {
+		$email = $user->getEMailAddress();
+		if (!is_string($email) || strlen($email) < 1) {
+			throw new UserNotFoundException($user);
+		}
+		return $email;
+	}
+
+	public function getUserLists(IUser $user): array {
+		$email = $this->getEmail($user);
+		$lists = array();
+		$clists = $this->listsFromConfig();
+		$domain = $this->config->getAppValue('domain');
+		foreach ($clists as $l) {
+			if (is_array($l) && array_key_exists('id', $l)) {
+				$members = array();
+				$included = false;
+				$groups = (array_key_exists('groups', $l)) ? $l['groups'] : [];
+				foreach ($groups as $g) {
+					$groupMembers = array();
+					$group = $this->groupManager->get($g);
+					$users = $group->getUsers();
+					foreach ($users as $u) {
+						$userEmail = $u->getEMailAddress();
+						array_push($groupMembers, [
+							'uid' => $u->getUID(),
+							'display_name' => $u->getDisplayName(),
+							'email' => $userEmail
+						]);
+						if (strcmp($email, $userEmail) === 0) {
+							$included = true;
+						}
+					}
+					array_push($members, [
+						'gid' => $g,
+						'members' => $groupMembers
+					]);
+				}
+				$extra = (array_key_exists('extra', $l)) ? $l['extra'] : [];
+				/* $extraMembers = array();
+				foreach ($extra as $e) {
+					array_push($extraMembers, [
+						'uid' => null,
+						'display_name' => $e,
+						'email' => $e
+					]);
+				} */
+				$exclude = (array_key_exists('exclude', $l)) ? $l['exclude'] : [];
+				$subscribed = !in_array($email, $exclude);
+				$show = (array_key_exists('show', $l)) ? $l['show'] : false;
+				if ($show || $included) {
+					array_push($lists, [
+						'id' => $l['id'],
+						'fqdn' => $l['id'] . '@' . $domain,
+						'groups' => $members,
+						'extra' => $extra,
+						'included' => $included,
+						'subscribed' => $subscribed
+					]);
+				}
+			}
+		}
+		/*
+		foreach ($this->mmlists() as $mml) {
+			if (is_array($mml) && array_key_exists('list_name', $mml)) {
+				$name = $mml['list_name'];
+				$members = $this->mmListMembers($name);
+				if (in_array($email, $members)) {
+					array_push($lists, [
+						'id' => $name,
+						'subscribed' => true
+					]);
+				}
+			}
+		}
+		$clists = $this->config->getLists();
+		if (is_array($clists)) {
+			foreach ($clists as $l) {
+				if (is_array($l) && array_key_exists('id', $l)
+					&& array_key_exists('exclude', $l) && is_array($l['exclude'])
+				) {
+					if (in_array($email, $l['exclude'])) {
+						$id = $l['id'];
+						if ($this->findList($lists, $id) !== false) {
+							$this->logger->error(
+								'[ListService] Email "'.$email
+								.'" is subscribed to "'.$id
+								.'" but also in exclude list'
+							);
+						} else {
+							array_push($lists, [
+								'id' => $id,
+								'subscribed' => false
+							]);
+						}
+					} // else {
+						// $this->logger->info('Not in exclude list "'.$email.'" ('.print_r($l, true).')');
+					// } 
+				}
+			}
+		}  */
+		return $lists;
+	}
+
+	public function subscribeUser(IUser $user, string $list) {
+		$email = $this->getEmail($user);
+		if (!$this->config->removeExclude($list, $email)) {
+			throw new UserNotFoundException($user);
+		}
+		$this->mm->subscribe($list, $email);
+	}
+
+	public function unsubscribeUser(IUser $user, string $list) {
+		$email = $this->getEmail($user);
+		if (!$this->config->addExclude($list, $email)) {
+			throw new UserNotFoundException($user);
+		}
+		$this->mm->unsubscribe($list, $email);
+	}
+
+	public function onGroupDeleted(IGroup $group) {
+		$gid = $group->getGID();
+		$lists = $this->listsFromConfig();
+		$needUpdate = false;
+		foreach ($lists as $l) {
+			if (is_array($l) && array_key_exists('id', $l)) {
+				$groups = (array_key_exists('groups', $l)) ? $l['groups'] : [];
+				if (in_array($gid, $groups)) {
+					$this->logger->info('Removing group "'.$gid.'" from "'.$l['id']);
+					$this->config->updateList($l['id'], [
+						'groups' => array_diff($groups, [ $gid ])
+					]);
+					$needUpdate = true;
+				}
+			}
+		}
+		if ($needUpdate) {
+			$actions = $this->checkLists();
+			$this->logger->info(
+				'Group "'.$gid.'" deleted -> MM actions: '
+				.print_r($actions, true)
+			);
+			$this->updateLists($actions);
+		}
+	}
+
+	public function onUserCreated(IUser $user) {
+		$lists = $this->listsFromConfig();
+		foreach ($lists as $l) {
+			if (is_array($l) && array_key_exists('id', $l)) {
+				$public = array_key_exists('show', $l) && $l['show'];
+				$this->mm->updateNonMembers($l['id'], $public);
+			}
+		}
+	}
+
+	public function onUserDeleted(IUser $user) {
+		$email = $user->getEMailAddress();
+		if (!is_string($email) || strlen($email) < 1) {
+			return;
+		}
+		$lists = $this->listsFromConfig();
+		foreach ($lists as $l) {
+			if (is_array($l) && array_key_exists('id', $l)) {
+				$this->config->removeExclude($l['id'], $email);
+				$public = array_key_exists('show', $l) && $l['show'];
+				$this->mm->updateNonMembers($l['id'], $public);
+			}
+		}
+		$actions = $this->checkLists();
+		$this->logger->info(
+			'User "'.$user->getUID().'" deleted -> MM actions: '
+			.print_r($actions, true)
+		);
+		$this->updateLists($actions);
+	}
+
+	public function onUserAdded(IGroup $group, IUser $user) {
+		$actions = $this->checkLists();
+		$this->logger->info(
+			'User "'.$user->getUID().'" added to "'.$group->getGID()
+			.'" -> MM actions: '.print_r($actions, true)
+		);
+		$this->updateLists($actions);
+	}
+
+	public function onUserRemoved(IGroup $group, IUser $user) {
+		$email = $user->getEMailAddress();
+		if (!is_string($email) || strlen($email) < 1) {
+			return;
+		}
+		$gid = $group->getGID();
+		$lists = $this->listsFromConfig();
+		for ($i=0; $i<count($lists); $i++) {
+			$l = $lists[$i];
+			if (is_array($l) && array_key_exists('groups', $l)
+				&& in_array($gid, $l['groups'])
+				&& array_key_exists('exclude', $l)
+				&& in_array($email, $l['exclude'])
+			) {
+				$lists[$i]['exclude'] = array_diff($lists[$i]['exclude'], [$email]);
+			}
+		}
+		$this->config->setLists($lists);
+		$actions = $this->checkLists();
+		$this->logger->info(
+			'User "'.$user->getUID().'" removed from "'.$group->getGID()
+			.'" -> MM actions: '.print_r($actions, true)
+		);
+		$this->updateLists($actions);
+	}
+
 	public function checkLists($lists = null): array {
 
 		if ($lists === null) {
-			$lists = $this->config->getLists();
-			if (!is_array($lists)) {
-				$this->logger->warning(
-					'[ListService] Config failure "lists"',
-					[ 'data' => print_r($lists, true) ]
-				);
-				$lists = [];
-			}	
+			$lists = $this->listsFromConfig();
 		}
 
 		$create = array();
@@ -152,7 +429,7 @@ class ListService {
 		$unsubscribe = array();
 
 		// delete
-		foreach ($this->mmlists as $mml) {
+		foreach ($this->mmlists() as $mml) {
 			if (is_array($mml) && array_key_exists('list_name', $mml)) {
 				$this->logger->debug(
 					'Checking MM list "'.$mml['list_name'].'" against lists',
@@ -181,9 +458,9 @@ class ListService {
 			if (is_array($l) && array_key_exists('id', $l)) {
 				$this->logger->debug(
 					'Checking list "'.$l['id'].'" against MM lists',
-					[ 'json' => json_encode($this->mmlists) ]
+					[ 'json' => json_encode($this->mmlists()) ]
 				);
-				$mml = $this->findMMList($l['id'], $this->mmlists);
+				$mml = $this->findMMList($l['id'], $this->mmlists());
 				if ($mml === false) {
 					$this->logger->debug('--> NOT FOUND, needs to be CREATED');
 					array_push($create, $l['id']);
@@ -216,8 +493,8 @@ class ListService {
 		}
 
 		// unsubscribe
-		if (is_array($this->mmlists)) {
-			foreach ($this->mmlists as $mml) {
+		if (is_array($this->mmlists())) {
+			foreach ($this->mmlists() as $mml) {
 				if (is_array($mml) && array_key_exists('list_name', $mml)
 					&& !in_array($mml['list_name'], $delete)
 				) {
@@ -262,10 +539,12 @@ class ListService {
 		}
 		if (array_key_exists('create', $actions)) {
 			foreach ($actions['create'] as $list) {
+				$l = $this->findList(null, $list);
+				$public = (is_array($l) && array_key_exists('show', $l) && $l['show']);
 				if ($debug) {
 					$this->logger->info('[updateLists] CREATE "' . $list . '"');
 				} else {
-					$this->mm->createList($list);
+					$this->mm->createList($list, $public);
 				}
 			}
 		}

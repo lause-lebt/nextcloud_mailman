@@ -26,6 +26,11 @@ export const setListData = (data) => {
 	return axios.post(url, data).then((resp) => resp.data)
 }
 
+export const updateListData = (id, data) => {
+	const url = generateUrl('/apps/mailman/api/listdata/' + id)
+	return axios.put(url, data).then((resp) => resp.data)
+}
+
 export const getPreview = (data) => {
 	const url = generateUrl('/apps/mailman/api/preview')
 	return axios.post(url, data).then((resp) => resp.data)
