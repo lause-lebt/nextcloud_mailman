@@ -156,7 +156,7 @@ class ListService {
 		foreach ($users as $u) {
 			$e = $u->getEMailAddress();
 			if (is_string($e) && strlen($e) > 0) {
-				array_push($emails, $e);
+				array_push($emails, strtolower($e));
 			}
 		}
 		return $emails;
@@ -171,13 +171,19 @@ class ListService {
 				$emails = array_merge($emails, $this->groupMembers($g));
 			}
 			if (!$includeUnsubscribed) {
-				$exclude = (array_key_exists('exclude', $list)) ? $list['exclude'] : [];
+				$exclude = array_map(function($e) {
+					return strtolower($e);
+				}, (array_key_exists('exclude', $list)) ? $list['exclude'] : []);
 				$emails = array_diff($emails, $exclude);
 			}
-			$extra = (array_key_exists('extra', $list)) ? $list['extra'] : [];
+			$extra = array_map(function($e) {
+				return strtolower($e);
+			}, (array_key_exists('extra', $list)) ? $list['extra'] : []);
 			$emails = array_merge($emails, $extra);
 		}
-		return $emails;
+		return array_map(function($e) {
+			return strtolower($e);
+		}, $emails);
 	}
 
 	private function mmListMembers(string $name) {
@@ -190,7 +196,9 @@ class ListService {
 				}
 			}
 		}
-		return $emails;
+		return array_map(function($e) {
+			return strtolower($e);
+		}, $emails);
 	}
 
 	public function allGroups(): array {
@@ -210,7 +218,7 @@ class ListService {
 		if (!is_string($email) || strlen($email) < 1) {
 			throw new UserNotFoundException($user);
 		}
-		return $email;
+		return strtolower($email);
 	}
 
 	public function getUserLists(IUser $user): array {
@@ -383,12 +391,43 @@ class ListService {
 	}
 
 	public function onUserAdded(IGroup $group, IUser $user) {
-		$actions = $this->checkLists();
+		// This is (unfortunately) called *before* the user was actually
+		// added to the group, so we can't rely on our default handling...
+/*		$actions = $this->checkLists();
 		$this->logger->info(
 			'User "'.$user->getUID().'" added to "'.$group->getGID()
 			.'" -> MM actions: '.print_r($actions, true)
 		);
 		$this->updateLists($actions);
+		*/
+		$email = $user->getEMailAddress();
+		if (!is_string($email) || strlen($email) < 1) {
+			return;
+		}
+		$gid = $group->getGID();
+		$lists = $this->listsFromConfig();
+		foreach ($lists as $l) {
+			if (is_array($l)
+				&& array_key_exists('id', $l)
+				&& array_key_exists('groups', $l)
+				&& in_array($gid, $l['groups'])
+			) {
+				$mmmembers = $this->mmListMembers($l['id']);
+				if (!in_array($email, $mmmembers)) {
+					$this->logger->info(
+						'User "'.$user->getUID().'" added to "'.$gid
+						.'" -> Adding to MM list.'
+					);
+					try {
+						$this->mm->subscribe($l['id'], $email);
+					} catch (MailmanException $e) {
+						$this->logger->error('SUBSCRIBE failed: '
+							. $e->getMessage()
+						);
+					}
+				}
+			}
+		}
 	}
 
 	public function onUserRemoved(IGroup $group, IUser $user) {
@@ -533,7 +572,11 @@ class ListService {
 				if ($debug) {
 					$this->logger->info('[updateLists] DELETE "' . $list . '"');
 				} else {
-					$this->mm->deleteList($list);
+					try {
+						$this->mm->deleteList($list);
+					} catch (MailmanException $e) {
+						$this->logger->error('[updateLists] DELETE failed: ' . $e->getMessage());
+					}
 				}
 			}
 		}
@@ -544,7 +587,11 @@ class ListService {
 				if ($debug) {
 					$this->logger->info('[updateLists] CREATE "' . $list . '"');
 				} else {
-					$this->mm->createList($list, $public);
+					try {
+						$this->mm->createList($list, $public);
+					} catch (MailmanException $e) {
+						$this->logger->error('[updateLists] CREATE failed: ' . $e->getMessage());
+					}
 				}
 			}
 		}
@@ -556,7 +603,11 @@ class ListService {
 						. $sub['list'] . '"'
 					);
 				} else {
-					$this->mm->subscribe($sub['list'], $sub['email']);
+					try {
+						$this->mm->subscribe($sub['list'], $sub['email']);
+					} catch (MailmanException $e) {
+						$this->logger->error('[updateLists] SUBSCRIBE failed: ' . $e->getMessage());
+					}
 				}
 			}
 		}
@@ -568,7 +619,11 @@ class ListService {
 						. $sub['list'] . '"'
 					);
 				} else {
-					$this->mm->unsubscribe($sub['list'], $sub['email']);
+					try {
+						$this->mm->unsubscribe($sub['list'], $sub['email']);
+					} catch (MailmanException $e) {
+						$this->logger->error('[updateLists] UNSUBSCRIBE failed: ' . $e->getMessage());
+					}
 				}
 			}
 		}

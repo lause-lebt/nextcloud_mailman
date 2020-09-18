@@ -26,7 +26,7 @@ declare(strict_types=1);
 
 namespace OCA\Mailman\AppInfo;
 
-use Psr\Container\ContainerInterface;
+//use Psr\Container\ContainerInterface;
 
 use OCP\AppFramework\App;
 use OCP\EventDispatcher\IEventDispatcher;
@@ -53,11 +53,11 @@ class Application extends App {
     public function __construct(array $urlParams=[]) {
         parent::__construct(self::APP_ID, $urlParams);
 
-		/** @var ContainerInterface */
+//		/** @var ContainerInterface */
 		$container = $this->getContainer();
 
 		/** @var IEventDispatcher */
-		$dispatcher = $container->get(IEventDispatcher::class);
+		$dispatcher = $container->query(IEventDispatcher::class);
 
 		$dispatcher->addServiceListener(UserCreatedEvent::class, UserCreatedListener::class);
 		$dispatcher->addServiceListener(UserDeletedEvent::class, UserDeletedListener::class);

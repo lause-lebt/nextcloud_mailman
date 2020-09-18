@@ -150,20 +150,20 @@ class MMService {
 	}
 
 
-	protected function get(string $query) {
-		return $this->request('get', $query);
+	protected function get(string $query, $data = null, $type = 'form_params') {
+		return $this->request('get', $query, $data, $type);
 	}
 
-	protected function post(string $query, $data) {
-		return $this->request('post', $query, $data);
+	protected function post(string $query, $data, $type = 'form_params') {
+		return $this->request('post', $query, $data, $type);
 	}
 
-	protected function put(string $query, $data) {
-		return $this->request('put', $query, $data);
+	protected function put(string $query, $data, $type = 'form_params') {
+		return $this->request('put', $query, $data, $type);
 	}
 
-	protected function delete(string $query) {
-		return $this->request('delete', $query);
+	protected function delete(string $query, $data = null, $type = 'form_params') {
+		return $this->request('delete', $query, $data, $type);
 	}
 
 
