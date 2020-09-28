@@ -224,7 +224,7 @@ class MMService {
 		$l[] = $this->put($q . '/max_message_size', [ 'max_message_size' => $this->limit ]);
 		if ($public) {
 			$emails = $this->allUsers();
-			$l[] = $this->put($q . '/accept_these_nonmembers', [ 'accept_these_nonmembers' => $emails ]);
+			$l[] = $this->put($q . '/accept_these_nonmembers', [ 'accept_these_nonmembers' => $emails ], 'json');
 		}
 		$this->logger->info('createList "'.$list.'": ' . print_r($l, true));
 		return true;
