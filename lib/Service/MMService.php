@@ -206,7 +206,7 @@ class MMService {
 		foreach ($users as $u) {
 			$e = $u->getEMailAddress();
 			if (is_string($e) && strlen($e) > 0) {
-				array_push($emails, $e);
+				array_push($emails, strtolower($e));
 			}
 		}
 		return $emails;
@@ -308,9 +308,9 @@ class MMService {
 		}
 	}
 
-	public function updateNonMembers(string $list, bool $public) {
+	public function updateNonMembers(string $list, bool $public, array $include = []) {
 		$q = 'lists/' . $list . '.' . $this->domain . '/config/accept_these_nonmembers';
-		$emails = $public ? $this->allUsers() : [];
+		$emails = $public ? array_unique(array_merge($this->allUsers(), $include)) : [];
 		$this->put($q, [ 'accept_these_nonmembers' => $emails ], 'json');
 	}
 

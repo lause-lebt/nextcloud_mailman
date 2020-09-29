@@ -240,7 +240,7 @@ class ListService {
 						array_push($groupMembers, [
 							'uid' => $u->getUID(),
 							'display_name' => $u->getDisplayName(),
-							'email' => $userEmail
+							'email' => strtolower($userEmail)
 						]);
 						if (strcmp($email, $userEmail) === 0) {
 							$included = true;
@@ -360,11 +360,16 @@ class ListService {
 	}
 
 	public function onUserCreated(IUser $user) {
+		$email = $user->getEMailAddress();
+		if (!is_string($email) || strlen($email) < 1) {
+			return;
+		}
+		$email = strtolower($email);
 		$lists = $this->listsFromConfig();
 		foreach ($lists as $l) {
 			if (is_array($l) && array_key_exists('id', $l)) {
 				$public = array_key_exists('show', $l) && $l['show'];
-				$this->mm->updateNonMembers($l['id'], $public);
+				$this->mm->updateNonMembers($l['id'], $public, [ $email ]);
 			}
 		}
 	}
@@ -374,6 +379,7 @@ class ListService {
 		if (!is_string($email) || strlen($email) < 1) {
 			return;
 		}
+		$email = strtolower($email);
 		$lists = $this->listsFromConfig();
 		foreach ($lists as $l) {
 			if (is_array($l) && array_key_exists('id', $l)) {
@@ -404,6 +410,7 @@ class ListService {
 		if (!is_string($email) || strlen($email) < 1) {
 			return;
 		}
+		$email = strtolower($email);
 		$gid = $group->getGID();
 		$lists = $this->listsFromConfig();
 		foreach ($lists as $l) {
@@ -435,6 +442,7 @@ class ListService {
 		if (!is_string($email) || strlen($email) < 1) {
 			return;
 		}
+		$email = strtolower($email);
 		$gid = $group->getGID();
 		$lists = $this->listsFromConfig();
 		for ($i=0; $i<count($lists); $i++) {
