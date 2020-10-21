@@ -222,6 +222,7 @@ class MMService {
 		$l[] = $this->put($q . '/subject_prefix', [ 'subject_prefix' => '['.$list.'] ' ]);
 		$l[] = $this->put($q . '/subscription_policy', [ 'subscription_policy' => 'moderate' ]);
 		$l[] = $this->put($q . '/max_message_size', [ 'max_message_size' => $this->limit ]);
+		$l[] = $this->put($q . '/default_nonmember_action', ['default_nonmember_action' => 'accept' ]);
 		if ($public) {
 			$emails = $this->allUsers();
 			$l[] = $this->put($q . '/accept_these_nonmembers', [ 'accept_these_nonmembers' => $emails ], 'json');
